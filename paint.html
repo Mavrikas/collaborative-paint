@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Multi-Paint</title>
+</head>
+<body>
+<p id='1'></p>
+<button type="button" id="purple" onclick="purple()">Purple</button>
+<button type="button" id="green" onclick="green()">Green</button>
+<button type="button" id="yellow" onclick="yellow()">Yellow</button>
+<button type="button" id="brown" onclick="brown()">Brown</button>
+<button type="button" id="red" onclick="red()">Red</button>
+<button type="button" id="blue" onclick="blue()">Blue</button>
+<button type="button" id="black" onclick="black()">Black</button><br/><br/>
+<button type="button" onclick="erase()">Eraser</button><br/><br/>
+<canvas id="canvas" width="1200" height="500" style="border:1px solid #000000;"></canvas><br/>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+
+<script type="text/javascript">
+context = document.getElementById("canvas").getContext("2d");
+
+var colorPurple = "#cb3594";
+var colorGreen = "#00ff00";
+var colorYellow = "#ffcf33";
+var colorBrown = "#986928";
+var colorBlue = "#0000ff";
+var colorRed = "#ff0000";
+var colorBlack="#000000";
+
+var curColor=colorBlack;
+var clickColor = new Array();
+
+function erase()
+{
+	curColor="#FFFFFF";
+}
+function purple()
+{
+	curColor=colorPurple;
+}
+function green()
+{
+	curColor=colorGreen;
+}
+function yellow()
+{
+	curColor=colorYellow;
+}
+function brown()
+{
+	curColor=colorBrown;
+}
+function red()
+{
+	curColor=colorRed;
+}
+function blue()
+{
+	curColor=colorBlue;
+}
+function black()
+{
+	curColor=colorBlack;
+}
+
+var socket=io.connect();
+var clients={};
+// Generate an unique ID
+var id = Math.round($.now()*Math.random());
+
+$(document).ready(function()
+{
+
+	var paint=false;
+	var prevpos={};
+	
+
+	$("#canvas").mousedown(function(e)
+	{
+	 
+	  prevpos.x=e.pageX-this.offsetLeft;
+	  prevpos.y=e.pageY-this.offsetTop;
+	  paint = true;
+
+	});
+
+	//var lastEmit=$.now();
+	$("#canvas").mousemove(function(e)
+	{
+
+	  if(paint)
+	  {
+		  socket.emit('move',{
+				'x': e.pageX-this.offsetLeft,
+				'y': e.pageY-this.offsetTop,
+				'drawing': paint,
+				'color': curColor,
+				'prevpos': prevpos,
+				'id': id
+				});
+		
+		//lastEmit=$.now();
+		redraw(prevpos.x,prevpos.y,e.pageX-this.offsetLeft,e.pageY-this.offsetTop,curColor);
+		prevpos.x=e.pageX-this.offsetLeft;
+		prevpos.y=e.pageY-this.offsetTop;	  
+		}
+	});
+
+	$("#canvas").mouseup(function(e)
+	{
+	paint=false;
+	socket.emit('stop',{
+	  'prevpos':{},
+	  'id':id
+	});
+	
+	});
+
+	$("#canvas").mouseleave(function(e)
+	{
+	paint=false;
+	 socket.emit('stop',{
+	 
+	  'prevpos':{},
+	  'id':id
+	});
+	
+	});
+
+	socket.on('draw',function(data){
+		if(clients[data.id] && data.drawing){
+			redraw(clients[data.id].prevpos.x,clients[data.id].prevpos.y,data.x,data.y,data.color);
+		}
+		clients[data.id]=data;
+		
+		
+	});
+socket.on('stop1',function(data){
+		
+		prevpos=data.prevpos;
+		clients[data.id].prevpos={};
+	});
+
+function redraw(fromx,fromy,tox,toy,curColor)
+	{
+
+		context.lineJoin = "round";
+		context.lineWidth = 5;
+		context.beginPath();
+		context.moveTo(fromx,fromy);
+		context.lineTo(tox,toy);
+		context.closePath();
+		context.strokeStyle = curColor;
+		context.stroke();
+	}
+
+});
+
+
+</script>
+</body>
+</html>
